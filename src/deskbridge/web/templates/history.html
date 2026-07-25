@@ -32,6 +32,10 @@
       </thead>
       <tbody>
         {% for row in history %}
+        {% set res = row.result or {} %}
+        {% set fname = res.get('filename') %}
+        {% if not fname and res.get('path') %}{% set fname = res.get('path').split('/')[-1] %}{% endif %}
+        {% if not fname and res.get('media') %}{% set fname = res.get('media').split('/')[-1] %}{% endif %}
         <tr data-action="{{ row.action }}" data-ok="{{ 1 if row.ok else 0 }}">
           <td class="mono">{{ row.id }}</td>
           <td class="mono">{{ row.ts }}</td>
@@ -42,12 +46,15 @@
           <td class="detail">
             {% if row.error %}
               <span class="warn">{{ row.error }}</span>
-            {% elif row.result and row.result.message %}
-              {{ row.result.message }}
-            {% elif row.result and row.result.path %}
-              <span class="mono">{{ row.result.path }}</span>
-            {% elif row.result and row.result.app %}
-              {{ row.result.app }}
+            {% elif row.action == 'screenshot' and row.ok and fname %}
+              <a class="media-link" href="/media/{{ fname }}" target="_blank" rel="noopener">View screenshot</a>
+              <span class="muted mono"> {{ fname }}</span>
+            {% elif res.get('message') %}
+              {{ res.get('message') }}
+            {% elif res.get('path') %}
+              <span class="mono">{{ res.get('path') }}</span>
+            {% elif res.get('app') %}
+              {{ res.get('app') }}
             {% else %}
               <span class="muted">—</span>
             {% endif %}

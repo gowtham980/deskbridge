@@ -47,7 +47,6 @@ PROTECTED_APPS: frozenset[str] = frozenset(
         "dock",
         "systemui server",
         "windowserver",
-        "systemui server",
     }
 )
 

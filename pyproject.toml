@@ -54,7 +54,8 @@ where = ["src"]
 [tool.setuptools.package-data]
 deskbridge = [
   "web/templates/*.html",
-  "web/static/*",
+  "web/static/*.css",
+  "web/static/*.js",
 ]
 
 [tool.pytest.ini_options]

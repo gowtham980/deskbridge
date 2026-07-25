@@ -264,17 +264,8 @@ class DesktopService:
         return handler()
 
     def _volume(self, params: dict[str, Any]) -> dict[str, Any]:
+        # Default to get when level is omitted (agent-friendly).
         if params.get("get") or params.get("level") is None:
-            if params.get("level") is None and not params.get("get"):
-                # default to get when neither provided for agent friendliness
-                if "level" not in params:
-                    return {"result": self.adapter.get_volume()}
-            if params.get("get") and params.get("level") is None:
-                return {"result": self.adapter.get_volume()}
-            if params.get("level") is None:
-                raise DeskBridgeError(
-                    "Provide level 0-100 or get=true",
-                    code=ErrorCode.BAD_ARGS,
-                )
+            return {"result": self.adapter.get_volume()}
         level = int(params["level"])
         return self.adapter.set_volume(level)

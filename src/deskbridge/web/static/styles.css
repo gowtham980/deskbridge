@@ -269,3 +269,10 @@ input:focus, select:focus, button:focus-visible {
   .nav { flex-direction: row; flex-wrap: wrap; }
   .topbar { flex-direction: column; }
 }
+
+.media-link {
+  color: var(--accent, #00e5ff);
+  text-decoration: none;
+  font-weight: 600;
+}
+.media-link:hover { text-decoration: underline; }

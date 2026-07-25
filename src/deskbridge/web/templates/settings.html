@@ -30,6 +30,9 @@
       </label>
       <button class="btn primary" type="submit">Save settings</button>
     </form>
+    <div id="restart-banner" class="banner warn hidden" role="status">
+      <strong>Restart required.</strong> Host/port changes apply on the next <code>deskbridge serve</code>.
+    </div>
     <div class="meta-box">
       <div><span class="muted">Data dir</span> <code>{{ data_dir }}</code></div>
       <div><span class="muted">Restart note</span> Host/port changes apply on next <code>deskbridge serve</code>.</div>
@@ -113,7 +116,10 @@
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Save failed');
-      toast('Settings saved');
+      const restart = (body.bind_host !== {{ settings.bind_host|tojson }} ) || (Number(body.bind_port) !== Number({{ settings.bind_port }}));
+      toast(restart ? 'Settings saved — restart deskbridge serve for host/port' : 'Settings saved');
+      const banner = document.getElementById('restart-banner');
+      if (restart && banner) banner.classList.remove('hidden');
     } catch (err) {
       toast(err.message || String(err), true);
     }
