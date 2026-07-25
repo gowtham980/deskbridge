@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block lede %}Status, quick actions, and latest screenshot{% endblock %}
+{% block content %}
+{% set st = status %}
+{% set result = st.get('result') if st.get('result') is mapping else st %}
+
+<section class="grid status-grid">
+  <article class="card">
+    <div class="card-label">Host</div>
+    <div class="card-value">{{ result.get('hostname', '—') }}</div>
+    <div class="muted">{{ result.get('product_name', result.get('platform', st.get('os', '—'))) }} · {{ result.get('arch', '') }}</div>
+  </article>
+  <article class="card">
+    <div class="card-label">Battery</div>
+    <div class="card-value">
+      {% if result.get('battery_percent') is not none %}{{ result.get('battery_percent') }}%{% else %}—{% endif %}
+    </div>
+    <div class="muted">
+      {% if result.get('on_ac') %}On AC{% elif result.get('battery_charging') %}Charging{% else %}Battery{% endif %}
+    </div>
+  </article>
+  <article class="card">
+    <div class="card-label">Disk free</div>
+    <div class="card-value">{{ (result.get('disk') or {}).get('avail', '—') }}</div>
+    <div class="muted">{{ (result.get('disk') or {}).get('capacity', '') }} used of {{ (result.get('disk') or {}).get('size', '') }}</div>
+  </article>
+  <article class="card">
+    <div class="card-label">Screen Recording</div>
+    {% set perms = result.get('permissions') or {} %}
+    <div class="card-value {% if perms.get('screen_recording') == 'ok' %}ok{% else %}warn{% endif %}">
+      {{ perms.get('screen_recording', 'unknown') }}
+    </div>
+    <div class="muted">osascript: {{ perms.get('osascript', '—') }}</div>
+  </article>
+</section>
+
+{% if not st.get('ok') %}
+<div class="banner error">
+  <strong>Status failed.</strong>
+  {{ st.get('error') or 'Unknown error' }}
+  {% if st.get('hint') %}<div class="muted">{{ st.get('hint') }}</div>{% endif %}
+</div>
+{% elif result.get('os') and result.get('os') != 'Darwin' %}
+<div class="banner warn">
+  <strong>Non-macOS host.</strong> DeskBridge MVP actions require Darwin.
+</div>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Quick actions</h2>
+    <p class="muted">Low-risk by default. Lock / quit ask for confirmation.</p>
+  </div>
+  <div class="action-row">
+    <button class="btn primary" data-action="screenshot" data-params='{"display":"main"}'>Screenshot</button>
+    <button class="btn" data-action="mute">Mute</button>
+    <button class="btn" data-action="unmute">Unmute</button>
+    <button class="btn" data-action="notify" data-params='{"title":"DeskBridge","body":"Hello from the control plane"}'>Notify</button>
+    <button class="btn danger" data-action="lock" data-confirm="true">Lock</button>
+    <button class="btn danger ghost" data-action="sleep-display" data-confirm="true">Sleep display</button>
+  </div>
+
+  <div class="form-grid">
+    <label class="field">
+      <span>Open app</span>
+      <div class="inline">
+        <input id="open-app-name" type="text" placeholder="Safari, chrome, Slack…" autocomplete="off" />
+        <button class="btn" id="open-app-btn" type="button">Open</button>
+      </div>
+    </label>
+    <label class="field">
+      <span>Open URL</span>
+      <div class="inline">
+        <input id="open-url" type="url" placeholder="https://example.com" autocomplete="off" />
+        <button class="btn" id="open-url-btn" type="button">Go</button>
+      </div>
+    </label>
+    <label class="field">
+      <span>Volume (0–100)</span>
+      <div class="inline">
+        <input id="volume-level" type="number" min="0" max="100" value="40" />
+        <button class="btn" id="volume-set-btn" type="button">Set</button>
+        <button class="btn ghost" id="volume-get-btn" type="button">Get</button>
+      </div>
+    </label>
+    <label class="field">
+      <span>Focus app</span>
+      <div class="inline">
+        <input id="focus-app-name" type="text" placeholder="Terminal" autocomplete="off" />
+        <button class="btn" id="focus-app-btn" type="button">Focus</button>
+      </div>
+    </label>
+    <label class="field">
+      <span>Quit app</span>
+      <div class="inline">
+        <input id="quit-app-name" type="text" placeholder="Music" autocomplete="off" />
+        <button class="btn danger" id="quit-app-btn" type="button">Quit…</button>
+      </div>
+    </label>
+    <label class="field">
+      <span>Clipboard set</span>
+      <div class="inline">
+        <input id="clipboard-text" type="text" placeholder="Text to copy" autocomplete="off" />
+        <button class="btn" id="clipboard-set-btn" type="button">Copy</button>
+        <button class="btn ghost" id="clipboard-get-btn" type="button">Read</button>
+      </div>
+    </label>
+  </div>
+</section>
+
+<section class="split">
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Latest screenshot</h2>
+      <button class="btn ghost" data-action="screenshot" data-params='{"display":"main"}'>Refresh capture</button>
+    </div>
+    <div class="shot-frame" id="shot-frame">
+      {% if latest_screenshot %}
+      <img id="shot-img" src="/media/{{ latest_screenshot }}" alt="Latest screenshot" />
+      {% else %}
+      <div class="empty" id="shot-empty">No screenshot yet — capture one above.</div>
+      <img id="shot-img" class="hidden" alt="Latest screenshot" />
+      {% endif %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Recent actions</h2>
+      <a class="btn ghost" href="/actions">View all</a>
+    </div>
+    {% if history %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Action</th>
+            <th>Risk</th>
+            <th>OK</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in history %}
+          <tr>
+            <td class="mono">{{ row.ts }}</td>
+            <td>{{ row.action }}</td>
+            <td><span class="pill risk-{{ row.risk }}">{{ row.risk }}</span></td>
+            <td>{% if row.ok %}<span class="ok">yes</span>{% else %}<span class="warn">no</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">No actions yet — try a screenshot.</div>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('open-app-btn')?.addEventListener('click', () => {
+    const name = document.getElementById('open-app-name').value.trim();
+    if (!name) return toast('Enter an app name', true);
+    runAction('open-app', { name });
+  });
+  document.getElementById('open-url-btn')?.addEventListener('click', () => {
+    const url = document.getElementById('open-url').value.trim();
+    if (!url) return toast('Enter a URL', true);
+    runAction('open-url', { url });
+  });
+  document.getElementById('volume-set-btn')?.addEventListener('click', () => {
+    const level = Number(document.getElementById('volume-level').value);
+    runAction('volume', { level });
+  });
+  document.getElementById('volume-get-btn')?.addEventListener('click', () => {
+    runAction('volume', { get: true });
+  });
+  document.getElementById('focus-app-btn')?.addEventListener('click', () => {
+    const name = document.getElementById('focus-app-name').value.trim();
+    if (!name) return toast('Enter an app name', true);
+    runAction('focus-app', { name });
+  });
+  document.getElementById('quit-app-btn')?.addEventListener('click', async () => {
+    const name = document.getElementById('quit-app-name').value.trim();
+    if (!name) return toast('Enter an app name', true);
+    const ok = await askConfirm(`Quit application “${name}”?`);
+    if (!ok) return;
+    runAction('quit-app', { name, confirm: true });
+  });
+  document.getElementById('clipboard-set-btn')?.addEventListener('click', () => {
+    const text = document.getElementById('clipboard-text').value;
+    runAction('clipboard-set', { text });
+  });
+  document.getElementById('clipboard-get-btn')?.addEventListener('click', async () => {
+    const res = await runAction('clipboard-get', {});
+    if (res?.ok && typeof res.text === 'string') {
+      document.getElementById('clipboard-text').value = res.text.slice(0, 500);
+    }
+  });
+</script>
+{% endblock %}

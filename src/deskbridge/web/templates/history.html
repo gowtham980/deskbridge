@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block lede %}Audited action history (SQLite, local-only){% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Action history</h2>
+    <div class="inline">
+      <label class="sr-only" for="filter-action">Filter action</label>
+      <input id="filter-action" type="search" placeholder="Filter by action…" />
+      <label class="sr-only" for="filter-ok">Result</label>
+      <select id="filter-ok">
+        <option value="">All results</option>
+        <option value="1">OK only</option>
+        <option value="0">Failed only</option>
+      </select>
+    </div>
+  </div>
+
+  {% if history %}
+  <div class="table-wrap">
+    <table class="table" id="history-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Time</th>
+          <th>Action</th>
+          <th>Risk</th>
+          <th>OK</th>
+          <th>Source</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in history %}
+        <tr data-action="{{ row.action }}" data-ok="{{ 1 if row.ok else 0 }}">
+          <td class="mono">{{ row.id }}</td>
+          <td class="mono">{{ row.ts }}</td>
+          <td>{{ row.action }}</td>
+          <td><span class="pill risk-{{ row.risk }}">{{ row.risk }}</span></td>
+          <td>{% if row.ok %}<span class="ok">yes</span>{% else %}<span class="warn">no</span>{% endif %}</td>
+          <td>{{ row.source }}</td>
+          <td class="detail">
+            {% if row.error %}
+              <span class="warn">{{ row.error }}</span>
+            {% elif row.result and row.result.message %}
+              {{ row.result.message }}
+            {% elif row.result and row.result.path %}
+              <span class="mono">{{ row.result.path }}</span>
+            {% elif row.result and row.result.app %}
+              {{ row.result.app }}
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div id="history-empty-filter" class="empty hidden">No rows match this filter.</div>
+  {% else %}
+  <div class="empty">No actions yet — try a screenshot from the dashboard.</div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const actionInput = document.getElementById('filter-action');
+  const okSelect = document.getElementById('filter-ok');
+  const rows = [...document.querySelectorAll('#history-table tbody tr')];
+  const empty = document.getElementById('history-empty-filter');
+
+  function applyFilter() {
+    const q = (actionInput?.value || '').trim().toLowerCase();
+    const ok = okSelect?.value || '';
+    let visible = 0;
+    for (const row of rows) {
+      const matchAction = !q || row.dataset.action.toLowerCase().includes(q);
+      const matchOk = !ok || row.dataset.ok === ok;
+      const show = matchAction && matchOk;
+      row.classList.toggle('hidden', !show);
+      if (show) visible += 1;
+    }
+    empty?.classList.toggle('hidden', visible !== 0 || rows.length === 0);
+  }
+  actionInput?.addEventListener('input', applyFilter);
+  okSelect?.addEventListener('change', applyFilter);
+</script>
+{% endblock %}
